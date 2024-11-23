@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func UnzipFile(path string, dest string) error {
@@ -21,7 +22,8 @@ func UnzipFile(path string, dest string) error {
 		}
 		defer fileReader.Close()
 
-		fpath := filepath.Join(dest, file.Name)
+		csvName := strings.Replace(filepath.Base(path), ".zip", ".csv", 1)
+		fpath := filepath.Join(dest, csvName)
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(fpath, file.Mode())
 		} else {

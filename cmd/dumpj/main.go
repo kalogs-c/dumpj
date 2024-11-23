@@ -2,11 +2,25 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"path/filepath"
 	"regexp"
+	"strings"
+	"sync"
 
 	"github.com/kalogs-c/dumpj/pkg/crawler"
 	"github.com/kalogs-c/dumpj/pkg/filemanager"
 )
+
+// TODO
+// - [ ] Handle errors (retry, log, etc)
+// - [ ] Stream CSV
+// - [ ] Parse CSV to sqlite3
+// - [ ] Avoid duplicates and cache previous dump
+// - [ ] Yaml config
+// - [ ] CLI
+// - [ ] Docker
+// - [ ] Logging
 
 func main() {
 	path := "https://dados-abertos-rf-cnpj.casadosdados.com.br/arquivos/"
@@ -29,14 +43,57 @@ func main() {
 	reg = regexp.MustCompile(".zip")
 	links = crawler.ScrapeLinks(content, reg)
 
-	for _, link := range links {
-		httppath := fmt.Sprintf("%s%s", files_path, link)
-		fpath := fmt.Sprintf("./_files/zips/%s", link)
+	downloadWg := sync.WaitGroup{}
+	zipch := make(chan string, len(links)/4)
 
-		fmt.Printf("Downloading: %s\n", httppath)
-		_, err := filemanager.DownloadFile(httppath, fpath)
-		if err != nil {
-			panic(err)
+	for _, link := range links {
+		downloadWg.Add(1)
+		go func(link string) {
+			defer downloadWg.Done()
+
+			httppath := fmt.Sprintf("%s%s", files_path, link)
+			fpath := fmt.Sprintf("./_files/zips/%s", link)
+
+			filesize, err := filemanager.GetFileSize(httppath)
+			if err != nil {
+				panic(err)
+			}
+
+			if filesize > int64(math.Pow(10, 8)) {
+				fmt.Printf("File too big: %s - %d bytes\n", httppath, filesize)
+				return
+			}
+
+			if filemanager.FileAlreadyExists(fpath, filesize) {
+				fmt.Printf("File already downloaded: %s\n", fpath)
+				zipch <- fpath
+				return
+			}
+
+			fmt.Printf("Downloading: %s\n", httppath)
+			written, err := filemanager.DownloadFile(httppath, fpath)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("Downloaded: %s - %d bytes written\n", fpath, written)
+
+			zipch <- fpath
+		}(link)
+	}
+
+	go func() {
+		downloadWg.Wait()
+		close(zipch)
+	}()
+
+	for fpath := range zipch {
+		csvName := strings.Replace(filepath.Base(fpath), ".zip", ".csv", 1)
+		csvPath := fmt.Sprintf("./_files/unzipped/%s", csvName)
+
+		if filemanager.FileAlreadyExists(csvPath, -1) {
+			fmt.Printf("File already unzipped: %s\n", csvPath)
+			continue
 		}
 
 		fmt.Printf("Unzipping: %s\n", fpath)
