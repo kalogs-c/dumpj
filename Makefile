@@ -4,6 +4,10 @@ default: run
 run: # Run the app using go run
 	go run cmd/dumpj/main.go
 
+.PHONY: test
+test: # Test the app using go test
+	go test -v ./tests/...
+
 .PHONY: clean
 clean: ## Remove _files
 	rm -rf _files/zips/*.zip
