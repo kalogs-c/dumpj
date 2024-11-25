@@ -14,7 +14,6 @@ import (
 
 // TODO
 // - [ ] Handle errors (retry, log, etc)
-// - [ ] Stream CSV
 // - [ ] Parse CSV to sqlite3
 // - [ ] Avoid duplicates and cache previous dump
 // - [ ] Yaml config
