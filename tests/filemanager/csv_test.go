@@ -15,15 +15,13 @@ Alice,30,New York
 Bob,25,Los Angeles`
 
 	reader := strings.NewReader(csvContent)
-	notifier := make(chan filemanager.CSVRow)
 
-	go filemanager.StreamCSV(notifier, reader, ',')
-
-	var results []filemanager.CSVRow
-	for row := range notifier {
-		if row.Error != nil {
-			t.Fatalf("Expected no errors, got %v", row.Error)
+	var results [][]string
+	for row, err := range filemanager.StreamCSV(reader, ',') {
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
 		}
+
 		results = append(results, row)
 	}
 
@@ -38,10 +36,10 @@ Bob,25,Los Angeles`
 	}
 
 	for i, row := range results {
-		if len(row.Data) != len(expected[i]) {
-			t.Fatalf("Row %d length mismatch: expected %d, got %d", i, len(expected[i]), len(row.Data))
+		if len(row) != len(expected[i]) {
+			t.Fatalf("Row %d length mismatch: expected %d, got %d", i, len(expected[i]), len(row))
 		}
-		for j, cell := range row.Data {
+		for j, cell := range row {
 			if cell != expected[i][j] {
 				t.Errorf("Row %d, column %d: expected %q, got %q", i, j, expected[i][j], cell)
 			}
@@ -55,13 +53,10 @@ Alice,30,New York
 Bob,25,"Los Angeles`
 
 	reader := strings.NewReader(csvContent)
-	notifier := make(chan filemanager.CSVRow)
+	errorOccurred := false
 
-	go filemanager.StreamCSV(notifier, reader, ',')
-
-	var errorOccurred bool
-	for row := range notifier {
-		if row.Error != nil {
+	for _, err := range filemanager.StreamCSV(reader, ',') {
+		if err != nil {
 			errorOccurred = true
 			break
 		}
@@ -74,29 +69,14 @@ Bob,25,"Los Angeles`
 
 func TestStreamCSV_EmptyCSV(t *testing.T) {
 	reader := strings.NewReader("")
-	notifier := make(chan filemanager.CSVRow)
-
-	go filemanager.StreamCSV(notifier, reader, ',')
 
 	count := 0
-	for range notifier {
+	for range filemanager.StreamCSV(reader, ',') {
 		count++
 	}
 
 	if count != 0 {
 		t.Errorf("Expected 0 rows, got %d", count)
-	}
-}
-
-func TestStreamCSV_ChannelClosing(t *testing.T) {
-	reader := strings.NewReader("")
-	notifier := make(chan filemanager.CSVRow)
-
-	go filemanager.StreamCSV(notifier, reader, ',')
-
-	_, open := <-notifier
-	if open {
-		t.Fatal("Expected channel to be closed after reading all data")
 	}
 }
 

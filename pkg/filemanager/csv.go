@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"iter"
 	"reflect"
 	"strconv"
 )
@@ -13,24 +14,20 @@ type CSVRow struct {
 	Error error
 }
 
-func StreamCSV(notifier chan<- CSVRow, reader io.Reader, separator rune) {
+func StreamCSV(reader io.Reader, separator rune) iter.Seq2[[]string, error] {
 	csvReader := csv.NewReader(reader)
 	csvReader.Comma = separator
 	csvReader.TrimLeadingSpace = true
 
-	for {
-		record, err := csvReader.Read()
-		if err == io.EOF {
-			close(notifier)
-			return
-		}
+	return func(yield func([]string, error) bool) {
+		for {
+			record, err := csvReader.Read()
+			if err == io.EOF {
+				return
+			}
 
-		row := CSVRow{Data: record, Error: nil}
-		if err != nil {
-			row.Error = err
+			yield(record, err)
 		}
-
-		notifier <- row
 	}
 }
 

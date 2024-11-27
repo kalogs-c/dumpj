@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,7 +40,7 @@ func main() {
 		panic(err)
 	}
 
-	reg = regexp.MustCompile(".zip")
+	reg = regexp.MustCompile("Cnaes|Empresas|Estabelecimentos|Municipios|Naturezas")
 	links = crawler.ScrapeLinks(content, reg)
 
 	downloadWg := sync.WaitGroup{}
@@ -86,19 +87,52 @@ func main() {
 		close(zipch)
 	}()
 
+	extractionWg := sync.WaitGroup{}
+	csvch := make(chan string, len(links)/4)
+
 	for fpath := range zipch {
-		csvName := strings.Replace(filepath.Base(fpath), ".zip", ".csv", 1)
-		csvPath := fmt.Sprintf("./_files/unzipped/%s", csvName)
+		extractionWg.Add(1)
+		go func(fpath string) {
+			defer extractionWg.Done()
 
-		if filemanager.FileAlreadyExists(csvPath, -1) {
-			fmt.Printf("File already unzipped: %s\n", csvPath)
-			continue
-		}
+			csvName := strings.Replace(filepath.Base(fpath), ".zip", ".csv", 1)
+			csvPath := fmt.Sprintf("./_files/unzipped/%s", csvName)
 
-		fmt.Printf("Unzipping: %s\n", fpath)
-		err = filemanager.UnzipFile(fpath, "./_files/unzipped")
+			if filemanager.FileAlreadyExists(csvPath, -1) {
+				fmt.Printf("File already unzipped: %s\n", csvPath)
+				csvch <- csvPath
+				return
+			}
+
+			fmt.Printf("Unzipping: %s\n", fpath)
+			err = filemanager.UnzipFile(fpath, "./_files/unzipped")
+			if err != nil {
+				panic(err)
+			}
+
+			csvch <- csvPath
+		}(fpath)
+	}
+
+	go func() {
+		extractionWg.Wait()
+		close(csvch)
+	}()
+
+	for csvPath := range csvch {
+		fmt.Printf("Parsing: %s\n", csvPath)
+		csvFile, err := os.Open(csvPath)
 		if err != nil {
 			panic(err)
+		}
+		defer csvFile.Close()
+
+		for row, err := range filemanager.StreamCSV(csvFile, ';') {
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("Row: %v\n", row)
 		}
 	}
 }
