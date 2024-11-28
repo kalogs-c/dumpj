@@ -1,7 +1,6 @@
 package filemanager_test
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -87,9 +86,7 @@ type TestStruct struct {
 }
 
 func TestBindFields_Success(t *testing.T) {
-	row := filemanager.CSVRow{
-		Data: []string{"Alice", "30", "45000.75"},
-	}
+	row := []string{"Alice", "30", "45000.75"}
 
 	var entity TestStruct
 	err := filemanager.BindFields(row, &entity)
@@ -104,9 +101,7 @@ func TestBindFields_Success(t *testing.T) {
 }
 
 func TestBindFields_InvalidInteger(t *testing.T) {
-	row := filemanager.CSVRow{
-		Data: []string{"Alice", "invalid", "45000.75"},
-	}
+	row := []string{"Alice", "invalid", "45000.75"}
 
 	var entity TestStruct
 	err := filemanager.BindFields(row, &entity)
@@ -116,9 +111,7 @@ func TestBindFields_InvalidInteger(t *testing.T) {
 }
 
 func TestBindFields_InvalidFloat(t *testing.T) {
-	row := filemanager.CSVRow{
-		Data: []string{"Alice", "30", "invalid"},
-	}
+	row := []string{"Alice", "30", "invalid"}
 
 	var entity TestStruct
 	err := filemanager.BindFields(row, &entity)
@@ -127,27 +120,12 @@ func TestBindFields_InvalidFloat(t *testing.T) {
 	}
 }
 
-func TestBindFields_RowError(t *testing.T) {
-	row := filemanager.CSVRow{
-		Data:  []string{},
-		Error: errors.New("mock error"),
-	}
-
-	var entity TestStruct
-	err := filemanager.BindFields(row, &entity)
-	if err == nil || err.Error() != "the row has an error: mock error" {
-		t.Errorf("Expected row error, but got %v", err)
-	}
-}
-
 func TestBindFields_InvalidColumnIndex(t *testing.T) {
 	type InvalidStruct struct {
 		InvalidField string `csv_column:"5"` // Out-of-range index
 	}
 
-	row := filemanager.CSVRow{
-		Data: []string{"Alice", "30", "45000.75"},
-	}
+	row := []string{"Alice", "30", "45000.75"}
 
 	var entity InvalidStruct
 	err := filemanager.BindFields(row, &entity)
@@ -162,9 +140,7 @@ func TestBindFields_MissingTag(t *testing.T) {
 		City string // No tag
 	}
 
-	row := filemanager.CSVRow{
-		Data: []string{"Alice", "30"},
-	}
+	row := []string{"Alice", "30"}
 
 	var entity PartialStruct
 	err := filemanager.BindFields(row, &entity)

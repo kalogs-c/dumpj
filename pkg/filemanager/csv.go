@@ -9,11 +9,6 @@ import (
 	"strconv"
 )
 
-type CSVRow struct {
-	Data  []string
-	Error error
-}
-
 func StreamCSV(reader io.Reader, separator rune) iter.Seq2[[]string, error] {
 	csvReader := csv.NewReader(reader)
 	csvReader.Comma = separator
@@ -31,11 +26,7 @@ func StreamCSV(reader io.Reader, separator rune) iter.Seq2[[]string, error] {
 	}
 }
 
-func BindFields[T any](row CSVRow, entity *T) error {
-	if row.Error != nil {
-		return fmt.Errorf("the row has an error: %v", row.Error)
-	}
-
+func BindFields(row []string, entity any) error {
 	entityValue := reflect.ValueOf(entity).Elem()
 	entityType := entityValue.Type()
 	if entityType.Kind() != reflect.Struct {
@@ -52,11 +43,11 @@ func BindFields[T any](row CSVRow, entity *T) error {
 		}
 
 		columnIndex, err := strconv.Atoi(tag)
-		if err != nil || columnIndex < 1 || columnIndex > len(row.Data) {
+		if err != nil || columnIndex < 1 || columnIndex > len(row) {
 			return fmt.Errorf("invalid column index %q for field %s", tag, field.Name)
 		}
 
-		column := row.Data[columnIndex-1]
+		column := row[columnIndex-1]
 		if column == "" {
 			value.Set(reflect.Zero(field.Type))
 			continue

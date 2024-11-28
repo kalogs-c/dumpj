@@ -1,21 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
+	"github.com/kalogs-c/dumpj/pkg/connections"
 	"github.com/kalogs-c/dumpj/pkg/crawler"
+	"github.com/kalogs-c/dumpj/pkg/entitites"
 	"github.com/kalogs-c/dumpj/pkg/filemanager"
 )
 
 // TODO
 // - [ ] Handle errors (retry, log, etc)
-// - [ ] Parse CSV to sqlite3
 // - [ ] Avoid duplicates and cache previous dump
 // - [ ] Yaml config
 // - [ ] CLI
@@ -23,6 +24,12 @@ import (
 // - [ ] Logging
 
 func main() {
+	q, closeConn, err := connections.NewSQLite(context.Background(), "file:./_files/dumpj.db?_fk=true&_journal_mode=WAL")
+	if err != nil {
+		panic(err)
+	}
+	defer closeConn()
+
 	path := "https://dados-abertos-rf-cnpj.casadosdados.com.br/arquivos/"
 
 	content, err := crawler.Fetch(path)
@@ -59,10 +66,10 @@ func main() {
 				panic(err)
 			}
 
-			if filesize > int64(math.Pow(10, 8)) {
-				fmt.Printf("File too big: %s - %d bytes\n", httppath, filesize)
-				return
-			}
+			// if filesize > int64(math.Pow(10, 8)) {
+			// 	fmt.Printf("File too big: %s - %d bytes\n", httppath, filesize)
+			// 	return
+			// }
 
 			if filemanager.FileAlreadyExists(fpath, filesize) {
 				fmt.Printf("File already downloaded: %s\n", fpath)
@@ -119,20 +126,51 @@ func main() {
 		close(csvch)
 	}()
 
-	for csvPath := range csvch {
-		fmt.Printf("Parsing: %s\n", csvPath)
-		csvFile, err := os.Open(csvPath)
-		if err != nil {
-			panic(err)
-		}
-		defer csvFile.Close()
+	parsingWg := sync.WaitGroup{}
+	dbch := make(chan entitites.Entity, 1024)
 
-		for row, err := range filemanager.StreamCSV(csvFile, ';') {
+	for csvPath := range csvch {
+		parsingWg.Add(1)
+
+		go func(csvPath string) {
+			defer parsingWg.Done()
+
+			fmt.Printf("Parsing: %s\n", csvPath)
+			csvFile, err := os.Open(csvPath)
 			if err != nil {
 				panic(err)
 			}
+			defer csvFile.Close()
 
-			fmt.Printf("Row: %v\n", row)
+			csvname := strings.Replace(filepath.Base(csvPath), ".csv", "", 1)
+			for row, err := range filemanager.StreamCSV(csvFile, ';') {
+				if err != nil {
+					panic(err)
+				}
+
+				entity := entitites.PickEntity(csvname)
+				entitites.NewEntityFromCSV(entity, row)
+
+				if entity.IsValid() {
+					dbch <- entity
+				} else {
+					fmt.Print("Invalid entity: ")
+					entity.Print()
+				}
+			}
+		}(csvPath)
+	}
+
+	go func() {
+		parsingWg.Wait()
+		close(dbch)
+	}()
+
+	for entity := range dbch {
+		// entity.Print()
+		err := entity.Save(context.Background(), q)
+		if err != nil {
+			panic(err)
 		}
 	}
 }

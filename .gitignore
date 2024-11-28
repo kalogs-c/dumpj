@@ -1,3 +1,4 @@
 _files/unzipped/*.csv
 _files/unzipped/*CSV
 _files/zips/*.zip
+_files/*.db**
