@@ -16,6 +16,15 @@ type Empresa struct {
 }
 
 func (e *Empresa) Save(ctx context.Context, q *db.Queries) error {
+	validMap, ok := ctx.Value("validEstabelecimentos").(map[string]bool)
+	if !ok {
+		return fmt.Errorf("validEstabelecimentos not found in context")
+	}
+
+	if !validMap[e.CnpjBasico] {
+		return nil
+	}
+
 	return q.CreateEmpresa(ctx, db.CreateEmpresaParams(*e))
 }
 

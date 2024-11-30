@@ -5,7 +5,7 @@ CREATE TABLE empresas (
   razao_social TEXT NOT NULL,
   natureza_juridica TEXT NOT NULL,
   capital_social INTEGER DEFAULT 0 NOT NULL,
-  porte_empresa TEXT NOT NULL,
+  porte_empresa TEXT NOT NULL
 
   -- FOREIGN KEY (natureza_juridica) REFERENCES naturezas_juridicas (codigo)
 );

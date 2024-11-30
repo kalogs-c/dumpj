@@ -9,6 +9,7 @@ CREATE TABLE estabelecimentos (
   nome_fantasia TEXT,
   data_abertura DATE NOT NULL,
   cnae TEXT NOT NULL,
+  tipo_logradouro TEXT,
   logradouro TEXT NOT NULL,
   numero TEXT NOT NULL,
   complemento TEXT,
@@ -18,7 +19,7 @@ CREATE TABLE estabelecimentos (
   municipio TEXT NOT NULL,
   ddd TEXT,
   telefone TEXT,
-  email TEXT,
+  email TEXT
   -- FOREIGN KEY (cnpj_basico) REFERENCES empresas (cnpj_basico),
   -- FOREIGN KEY (cnae) REFERENCES cnaes (codigo),
   -- FOREIGN KEY (municipio) REFERENCES municipios (codigo),

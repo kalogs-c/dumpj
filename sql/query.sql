@@ -40,21 +40,25 @@ INSERT INTO estabelecimentos (
     numero, complemento, bairro, cep,
     uf, municipio, ddd, telefone, email
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (cnpj_basico, cnpj_ordem, cnpj_dv) DO UPDATE 
-SET 
-    nome_fantasia = EXCLUDED.nome_fantasia,
-    data_abertura = EXCLUDED.data_abertura,
-    cnae = EXCLUDED.cnae,
-    logradouro = EXCLUDED.logradouro,
-    numero = EXCLUDED.numero,
-    complemento = EXCLUDED.complemento,
-    bairro = EXCLUDED.bairro,
-    cep = EXCLUDED.cep,
-    uf = EXCLUDED.uf,
-    municipio = EXCLUDED.municipio,
-    ddd = EXCLUDED.ddd,
-    telefone = EXCLUDED.telefone,
-    email = EXCLUDED.email;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+---------------- UF ----------------
 
+-- name: CreateUf :exec
+INSERT INTO uf (codigo, descricao) VALUES (?, ?)
+ON CONFLICT (codigo) DO UPDATE SET descricao = EXCLUDED.descricao;
+
+---------------- DDD ----------------
+
+-- name: CreateDDD :exec
+INSERT INTO ddd (id, uf) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET uf = EXCLUDED.uf;
+
+------------------ Clean UP ----------------
+
+-- name: DeleteEmpresasWithoutEstabelecimentos :exec
+DELETE FROM empresas 
+WHERE NOT EXISTS (
+  SELECT 1 FROM estabelecimentos
+  WHERE estabelecimentos.cnpj_basico = empresas.cnpj_basico
+);

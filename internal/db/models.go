@@ -36,6 +36,7 @@ type Estabelecimento struct {
 	NomeFantasia              sql.NullString
 	DataAbertura              time.Time
 	Cnae                      string
+	TipoLogradouro            sql.NullString
 	Logradouro                string
 	Numero                    string
 	Complemento               sql.NullString

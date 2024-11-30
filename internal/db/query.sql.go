@@ -29,6 +29,23 @@ func (q *Queries) CreateCnae(ctx context.Context, arg CreateCnaeParams) error {
 	return err
 }
 
+const createDDD = `-- name: CreateDDD :exec
+
+INSERT INTO ddd (id, uf) VALUES (?, ?)
+ON CONFLICT (id) DO UPDATE SET uf = EXCLUDED.uf
+`
+
+type CreateDDDParams struct {
+	ID int64
+	Uf string
+}
+
+// -------------- DDD ----------------
+func (q *Queries) CreateDDD(ctx context.Context, arg CreateDDDParams) error {
+	_, err := q.db.ExecContext(ctx, createDDD, arg.ID, arg.Uf)
+	return err
+}
+
 const createEmpresa = `-- name: CreateEmpresa :exec
 
 INSERT INTO empresas (cnpj_basico, razao_social, natureza_juridica, capital_social, porte_empresa)
@@ -70,21 +87,6 @@ INSERT INTO estabelecimentos (
     uf, municipio, ddd, telefone, email
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (cnpj_basico, cnpj_ordem, cnpj_dv) DO UPDATE 
-SET 
-    nome_fantasia = EXCLUDED.nome_fantasia,
-    data_abertura = EXCLUDED.data_abertura,
-    cnae = EXCLUDED.cnae,
-    logradouro = EXCLUDED.logradouro,
-    numero = EXCLUDED.numero,
-    complemento = EXCLUDED.complemento,
-    bairro = EXCLUDED.bairro,
-    cep = EXCLUDED.cep,
-    uf = EXCLUDED.uf,
-    municipio = EXCLUDED.municipio,
-    ddd = EXCLUDED.ddd,
-    telefone = EXCLUDED.telefone,
-    email = EXCLUDED.email
 `
 
 type CreateEstabelecimentoParams struct {
@@ -164,5 +166,37 @@ type CreateNaturezaJuridicaParams struct {
 // -------------- Natureza Juridica ----------------
 func (q *Queries) CreateNaturezaJuridica(ctx context.Context, arg CreateNaturezaJuridicaParams) error {
 	_, err := q.db.ExecContext(ctx, createNaturezaJuridica, arg.Descricao, arg.Codigo)
+	return err
+}
+
+const createUf = `-- name: CreateUf :exec
+
+INSERT INTO uf (codigo, descricao) VALUES (?, ?)
+ON CONFLICT (codigo) DO UPDATE SET descricao = EXCLUDED.descricao
+`
+
+type CreateUfParams struct {
+	Codigo    string
+	Descricao string
+}
+
+// -------------- UF ----------------
+func (q *Queries) CreateUf(ctx context.Context, arg CreateUfParams) error {
+	_, err := q.db.ExecContext(ctx, createUf, arg.Codigo, arg.Descricao)
+	return err
+}
+
+const deleteEmpresasWithoutEstabelecimentos = `-- name: DeleteEmpresasWithoutEstabelecimentos :exec
+
+DELETE FROM empresas 
+WHERE NOT EXISTS (
+  SELECT 1 FROM estabelecimentos
+  WHERE estabelecimentos.cnpj_basico = empresas.cnpj_basico
+)
+`
+
+// ---------------- Clean UP ----------------
+func (q *Queries) DeleteEmpresasWithoutEstabelecimentos(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteEmpresasWithoutEstabelecimentos)
 	return err
 }

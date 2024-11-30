@@ -18,16 +18,17 @@ type Estabelecimento struct {
 	Situacao                  string         `csv_column:"6"`
 	DataAbertura              time.Time      `csv_column:"11"`
 	Cnae                      string         `csv_column:"12"`
-	Logradouro                string         `csv_column:"14"`
-	Numero                    string         `csv_column:"15"`
-	Complemento               sql.NullString `csv_column:"16"`
-	Bairro                    string         `csv_column:"17"`
-	Cep                       string         `csv_column:"18"`
-	Uf                        string         `csv_column:"19"`
-	Municipio                 string         `csv_column:"20"`
-	Ddd                       sql.NullString `csv_column:"21"`
-	Telefone                  sql.NullString `csv_column:"22"`
-	Email                     sql.NullString `csv_column:"27"`
+	TipoLogradouro            sql.NullString `csv_column:"14"`
+	Logradouro                string         `csv_column:"15"`
+	Numero                    string         `csv_column:"16"`
+	Complemento               sql.NullString `csv_column:"17"`
+	Bairro                    string         `csv_column:"18"`
+	Cep                       string         `csv_column:"19"`
+	Uf                        string         `csv_column:"20"`
+	Municipio                 string         `csv_column:"21"`
+	Ddd                       sql.NullString `csv_column:"22"`
+	Telefone                  sql.NullString `csv_column:"23"`
+	Email                     sql.NullString `csv_column:"28"`
 }
 
 func (e *Estabelecimento) Save(ctx context.Context, q *db.Queries) error {
@@ -51,6 +52,11 @@ func (e *Estabelecimento) Save(ctx context.Context, q *db.Queries) error {
 		Email:                     e.Email,
 	}
 
+	validMap, ok := ctx.Value("validEstabelecimentos").(map[string]bool)
+	if ok {
+		validMap[e.CnpjBasico] = true
+	}
+
 	return q.CreateEstabelecimento(ctx, attr)
 }
 
@@ -69,5 +75,5 @@ func (e *Estabelecimento) IsValid() bool {
 }
 
 func (e *Estabelecimento) Print() {
-	fmt.Printf("Estabelecimento: %s-%s.%s\n", e.CnpjBasico, e.CnpjOrdem, e.CnpjDv)
+	fmt.Printf("Estabelecimento: %s-%s.%s.\n", e.CnpjBasico, e.CnpjOrdem, e.CnpjDv)
 }
